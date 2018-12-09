@@ -20,33 +20,6 @@
 using namespace cv;
 using namespace std;
 
-class Stats
-{
-public:
-	Stats(int x, int y, int area, int width, int height)
-	{
-		X = x;
-		Y = y;
-		Area = area;
-		Width = width;
-		Height = height;
-	}
-
-	Stats()
-	{
-	}
-
-	bool operator<(const Stats &other) {
-		return Area < other.Area;
-	}
-
-	int X;
-	int Y;
-	double Area;
-	int Width;
-	int Height;
-};
-
 class MyListener : public royale::IDepthDataListener
 {
 
@@ -312,44 +285,19 @@ public:
 	}
 
 	void segment(Mat pic) {
-		Mat segments, centroids, stats;
-		vector<Stats> labelStats;
+		Mat segments;
+		int labels = connectedComponents(pic, segments, CV_32S);
 
+		Mat seeMyLabels;
+		normalize(segments, seeMyLabels, 0, 255, NORM_MINMAX, CV_8U);
 
-		int labels = connectedComponentsWithStats(pic, segments, stats, centroids, CV_32S);
-
-		for (int x = 0; x < labels; x++) {
-			Stats stat;
-
-			stat.Area = stats.at<int>(x, CC_STAT_AREA);
-			stat.X = stats.at<int>(x, CC_STAT_LEFT);
-			stat.Y = stats.at<int>(x, CC_STAT_TOP);
-			stat.Width = stats.at<int>(x, CC_STAT_WIDTH);
-			stat.Height = stats.at<int>(x, CC_STAT_HEIGHT);
-
-			labelStats.push_back(stat);
-		}
-
-		sort(labelStats.begin(), labelStats.end());
-
-		int avgSize = 1200;// labelStats[labelStats.size() / 2].Area;
-
-		vector<Stats> TastenKIEZ;
-		for (auto stat : labelStats) {
-			if (abs(stat.Area - avgSize) < 200)
-				TastenKIEZ.push_back(stat);
-		}
-
-		srand(time(NULL));
-		Mat image = grayImage.clone();
-		cvtColor(image, image, CV_GRAY2BGR);
-
-		for (auto it : TastenKIEZ) {
-			rectangle(image, Rect(it.X, it.Y, it.Width, it.Height), Scalar(rand() % 255, rand() % 255, rand() % 255), CV_FILLED);
-		}
-
-		imshow("segementiert lol", image);
+		imshow("Labels", seeMyLabels);
+		imshow("input", pic);
+		imshow("output", segments);
 		waitKey(1);
+
+		Mat output;
+
 	}
 
 private:
