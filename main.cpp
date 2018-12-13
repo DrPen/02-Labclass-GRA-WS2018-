@@ -23,13 +23,14 @@ using namespace std;
 class Stats
 {
 public:
-	Stats(int x, int y, int area, int width, int height)
+	Stats(int x, int y, int area, int width, int height, Scalar colour)
 	{
 		X = x;
 		Y = y;
 		Area = area;
 		Width = width;
 		Height = height;
+		Colour = colour;
 	}
 
 	Stats()
@@ -45,6 +46,7 @@ public:
 	double Area;
 	int Width;
 	int Height;
+	Scalar Colour;
 };
 
 class MyListener : public royale::IDepthDataListener
@@ -356,7 +358,7 @@ public:
 				}
 			}
 			imshow("LinePlot", lineImg);
-			waitKey(0);
+			waitKey(1);
 		}
 	}
 
@@ -375,6 +377,7 @@ public:
 			stat.Y = stats.at<int>(x, CC_STAT_TOP);
 			stat.Width = stats.at<int>(x, CC_STAT_WIDTH);
 			stat.Height = stats.at<int>(x, CC_STAT_HEIGHT);
+			stat.Colour = Scalar(0, 0, 0);	// default colour black to detect errors
 
 			labelStats.push_back(stat);
 		}
@@ -386,6 +389,7 @@ public:
 		vector<Stats> TastenKIEZ;
 		for (auto stat : labelStats) {
 			if (abs(stat.Area - avgSize) < 200)
+				stat.Colour = Scalar(rand() % 256, rand() % 256, rand() % 256);	// random, but consistent colours
 				TastenKIEZ.push_back(stat);
 		}
 
@@ -393,11 +397,11 @@ public:
 		Mat image = grayImage.clone();
 		cvtColor(image, image, CV_GRAY2BGR);
 
-		for (auto it : TastenKIEZ) {
-			rectangle(image, Rect(it.X, it.Y, it.Width, it.Height), Scalar(rand() % 255, rand() % 255, rand() % 255), CV_FILLED);
+		for (auto key : TastenKIEZ) {
+			rectangle(image, Rect(key.X, key.Y, key.Width, key.Height), key.Colour, CV_FILLED);
 		}
 
-		imshow("segementiert lol", image);
+		imshow("SegmentedImage", image);
 		waitKey(1);
 	}
 
