@@ -302,6 +302,81 @@ public:
 		this->mode = mode;
 	}
 
+	bool positionDetection(Mat pic) {
+		int horizontalMax = 0;
+		int verticalMax = 0;
+
+		Scalar avgGray = mean(pic);
+		Point start(-1, -1);
+		Point end(-1, -1);
+
+		for (int x = 10; x < pic.cols - 10; x++) {
+			for (int y = 10; y < pic.rows - 10; y++) {
+				if ((double)pic.at<uint8_t>(Point(x, y)) <= avgGray[0]) {
+					if (start == Point(-1, -1)) {
+						start = Point(x, y);
+					}
+				}
+				else {
+					if (start != Point(-1, -1)) {
+						end = Point(x, y - 1);
+					}
+
+					if (start != Point(-1, -1) && end != Point(-1, -1)) {
+						if (end.y - start.y > verticalMax) {
+							verticalMax = end.y - start.y;
+						}
+						start = Point(-1, -1);
+						end = Point(-1, -1);
+					}
+
+				}
+
+				if (start != Point(-1, -1) && y == pic.rows) {
+					end = Point(x, y);
+					if (end.y - start.y > verticalMax) {
+						verticalMax = end.y - start.y;
+					}
+					start = Point(-1, -1);
+					end = Point(-1, -1);
+				}
+			}
+		}
+
+		for (int y = 10; y < pic.rows - 10; y++) {
+			for (int x = 10; x < pic.cols - 10; x++) {
+				if ((double)pic.at<uint8_t>(Point(x, y)) <= avgGray[0]) {
+					if (start == Point(-1, -1)) {
+						start = Point(x, y);
+					}
+				}
+				else {
+					if (start != Point(-1, -1)) {
+						end = Point(x, y - 1);
+					}
+
+					if (start != Point(-1, -1) && end != Point(-1, -1)) {
+						if (end.x - start.x > horizontalMax) {
+							horizontalMax = end.x - start.x;
+						}
+						start = Point(-1, -1);
+						end = Point(-1, -1);
+					}
+				}
+
+				if (start != Point(-1, -1) && x == pic.cols) {
+					end = Point(x, y);
+					if (end.x - start.x > horizontalMax) {
+						horizontalMax = end.x - start.x;
+					}
+					start = Point(-1, -1);
+					end = Point(-1, -1);
+				}
+			}
+		}
+		return horizontalMax > verticalMax;
+	}
+
 	void linePlot(Mat pic) {
 		if (pic.empty()) {
 			cerr << "Image is empty, can't plot anything!" << endl;
@@ -315,6 +390,8 @@ public:
 			Point end(-1, -1);
 			int lineThickness = 2;
 
+			vector<Point>plotValues;
+
 			double min, max;
 			minMaxLoc(pic, &min, &max);
 			srand(time(NULL));
@@ -324,41 +401,27 @@ public:
 				spreadHistogram(pic);
 			}
 
-			Scalar avgGray = mean(pic);
+			// checks image direction
+			bool horizontal = positionDetection(pic);
 
-			for (int x = 0; x < pic.cols; x++) {
-				start = Point(-1, -1);
-				end = Point(-1, -1);
-				for (int y = 0; y < pic.rows; y++) {
-					if (pic.at<uint8_t>(Point(x, y)) <= avgGray[0]) {
-						if (start == Point(-1, -1)) {
-							start = Point(x, y);
-						}
-					}
-					else {
-						if (start != Point(-1, -1)) {
-							end = Point(x, y - 1);
-						}
-					}
-
-					if (start != Point(-1, -1) && y == pic.rows - 1) {
-						end = Point(x, y);
-						line(lineImg, start, end, Scalar(rand() % 256, rand() % 256, rand() % 256), lineThickness, 8);
-
-						start = Point(-1, -1);
-						end = Point(-1, -1);
-					}
-
-					if (start != Point(-1, -1) && end != Point(-1, -1)) {
-						line(lineImg, end, start, Scalar(rand() % 256, rand() % 256, rand() % 256), lineThickness, 8);
-
-						start = Point(-1, -1);
-						end = Point(-1, -1);
-					}
+			if (horizontal) {
+				for (int x = 0; x < pic.cols; x++) {
+					plotValues.push_back(Point(x, pic.at<uint8_t>(Point(x, pic.rows / 2))));
 				}
 			}
+			else {
+				for (int y = 0; y < pic.rows; y++) {
+					plotValues.push_back(Point(pic.at<uint8_t>(Point(pic.cols / 2, y)), y));
+				}
+			}
+
+			for (int x = 0; x < plotValues.size() - 1; x++) {
+				start = plotValues[x];
+				end = plotValues[x + 1];
+				line(lineImg, start, end, Scalar(rand() % 256, rand() % 256, rand() % 256), lineThickness, 8);
+			}
+
 			imshow("LinePlot", lineImg);
-			waitKey(1);
 		}
 	}
 
