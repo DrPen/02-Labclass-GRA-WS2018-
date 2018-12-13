@@ -166,21 +166,21 @@ public:
 	}
 #endif
 
-	void spreadHistogram(Mat *pic) {
-		Mat nonZeroMask = pic->clone();
-		compare(*pic, 0, nonZeroMask, CV_CMP_NE);
+	void spreadHistogram(Mat pic) {
+		Mat nonZeroMask = pic.clone();
+		compare(pic, 0, nonZeroMask, CV_CMP_NE);
 
 		double min, max, scale, shift;
-		minMaxLoc(*pic, &min, &max, NULL, NULL, nonZeroMask);
-		scale = 255.0 / (max - min),
-			shift = -255.0 * min / (max - min);
-		convertScaleAbs(*pic, *pic, scale, shift);
+		minMaxLoc(pic, &min, &max, NULL, NULL, nonZeroMask);
+		scale = 255.0 / (max - min);
+		shift = -255.0 * min / (max - min);
+		convertScaleAbs(pic, pic, scale, shift);
 	}
 
 	// assignment 1
 	void showImage() {
 		if (!zImage.empty()) {
-			spreadHistogram(&zImage);
+			spreadHistogram(zImage);
 			zImage.convertTo(zImage, CV_8U);
 			applyColorMap(zImage, zImage, COLORMAP_RAINBOW);
 
@@ -191,7 +191,7 @@ public:
 		}
 
 		if (!grayImage.empty()) {
-			spreadHistogram(&grayImage);
+			spreadHistogram(grayImage);
 			grayImage.convertTo(grayImage, CV_8U);
 
 			// L2A1
@@ -301,13 +301,62 @@ public:
 	}
 
 	void linePlot(Mat pic) {
-		Point top, left, right, bot;
+		if (pic.empty()) {
+			cerr << "Image is empty, can't plot anything!" << endl;
+		}
+		else {
+			Mat lineImg = pic.clone();
+			lineImg = 0;
+			cvtColor(lineImg, lineImg, CV_GRAY2BGR);
 
+			Point start(-1, -1);
+			Point end(-1, -1);
+			int lineThickness = 2;
 
-		for (int x = 0; x < pic.rows; x++) {
-			for (int y = 0; y < pic.cols; y++) {
+			double min, max;
+			minMaxLoc(pic, &min, &max);
+			srand(time(NULL));
 
+			// ensures that image has undergone histogram equalisation
+			if (max < 255) {
+				spreadHistogram(pic);
 			}
+
+			Scalar avgGray = mean(pic);
+
+			for (int x = 0; x < pic.cols; x++) {
+				start = Point(-1, -1);
+				end = Point(-1, -1);
+				for (int y = 0; y < pic.rows; y++) {
+					if (pic.at<uint8_t>(Point(x, y)) <= avgGray[0]) {
+						if (start == Point(-1, -1)) {
+							start = Point(x, y);
+						}
+					}
+					else {
+						if (start != Point(-1, -1)) {
+							end = Point(x, y - 1);
+						}
+					}
+
+					if (start != Point(-1, -1) && y == pic.rows - 1) {
+						end = Point(x, y);
+						line(lineImg, start, end, Scalar(rand() % 256, rand() % 256, rand() % 256), lineThickness, 8);
+
+						start = Point(-1, -1);
+						end = Point(-1, -1);
+					}
+
+					if (start != Point(-1, -1) && end != Point(-1, -1)) {
+						line(lineImg, end, start, Scalar(rand() % 256, rand() % 256, rand() % 256), lineThickness, 8);
+
+						start = Point(-1, -1);
+						end = Point(-1, -1);
+					}
+				}
+			}
+			imshow("LinePlot", lineImg);
+			waitKey(0);
 		}
 	}
 
