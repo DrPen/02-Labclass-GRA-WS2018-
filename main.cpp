@@ -16,6 +16,11 @@
 #define RECORDVIDEO 2
 #define PLAYVIDEO 3
 
+// defines for sorting vectors of stats
+#define AREA 4
+#define HORIZONTAL_SORT 5
+#define VERTICAL_SORT 6
+
 
 using namespace cv;
 using namespace std;
@@ -37,16 +42,32 @@ public:
 	{
 	}
 
-	bool operator<(const Stats &other) {
-		return Area < other.Area;
-	}
-
 	int X;
 	int Y;
 	double Area;
 	int Width;
 	int Height;
 	Scalar Colour;
+};
+
+struct statsSortProperty {
+	int property;
+
+	statsSortProperty(int property) {
+		this->property = property;
+	}
+
+	bool operator()(const Stats &s1, const Stats &s2) const {
+		if (property == AREA) {
+			return s1.Area < s2.Area;
+		}
+		else if (property == HORIZONTAL_SORT) {
+			return s1.X < s2.X;
+		}
+		else {
+			return s1.Y < s2.Y;
+		}
+	}
 };
 
 class MyListener : public royale::IDepthDataListener
@@ -445,18 +466,42 @@ public:
 			labelStats.push_back(stat);
 		}
 
-		sort(labelStats.begin(), labelStats.end());
+		// sort(labelStats.begin(), labelStats.end());
+		sort(labelStats.begin(), labelStats.end(), statsSortProperty(AREA)); // sort by AREA property
+
 
 		int avgSize = 1200;// labelStats[labelStats.size() / 2].Area;
+		srand(time(NULL));
 
+		// old version does not sort by x or y
+#if 0
 		vector<Stats> TastenKIEZ;
 		for (auto stat : labelStats) {
 			if (abs(stat.Area - avgSize) < 200)
 				stat.Colour = Scalar(rand() % 256, rand() % 256, rand() % 256);	// random, but consistent colours
 				TastenKIEZ.push_back(stat);
 		}
+#endif
+		// hit and miss version, attempts to sortt by x and y coordinates, depending on how the paper is placed
+		vector<Stats> TastenKIEZ;
+		for (auto stat : labelStats) {
+			if (abs(stat.Area - avgSize) < 200)
+				TastenKIEZ.push_back(stat);
 
-		srand(time(NULL));
+			if (!TastenKIEZ.empty()) {
+				if (TastenKIEZ[0].Width < TastenKIEZ[0].Height) {
+					sort(TastenKIEZ.begin(), TastenKIEZ.end(), statsSortProperty(VERTICAL_SORT));
+				}
+				else {
+					sort(TastenKIEZ.begin(), TastenKIEZ.end(), statsSortProperty(HORIZONTAL_SORT));
+				}
+				for (auto key : TastenKIEZ) {
+					key.Colour = Scalar(rand() % 256, rand() % 256, rand() % 256);	// random, but consistent colours
+				}
+			}
+		}
+
+
 		Mat image = grayImage.clone();
 		cvtColor(image, image, CV_GRAY2BGR);
 
