@@ -189,21 +189,21 @@ public:
 	}
 #endif
 
-	void spreadHistogram(Mat pic) {
-		Mat nonZeroMask = pic.clone();
-		compare(pic, 0, nonZeroMask, CV_CMP_NE);
+	void spreadHistogram(Mat *pic) {
+		Mat nonZeroMask = pic->clone();
+		compare(*pic, 0, nonZeroMask, CV_CMP_NE);
 
 		double min, max, scale, shift;
-		minMaxLoc(pic, &min, &max, NULL, NULL, nonZeroMask);
-		scale = 255.0 / (max - min);
-		shift = -255.0 * min / (max - min);
-		convertScaleAbs(pic, pic, scale, shift);
+		minMaxLoc(*pic, &min, &max, NULL, NULL, nonZeroMask);
+		scale = 255.0 / (max - min),
+			shift = -255.0 * min / (max - min);
+		convertScaleAbs(*pic, *pic, scale, shift);
 	}
 
 	// assignment 1
 	void showImage() {
 		if (!zImage.empty()) {
-			spreadHistogram(zImage);
+			spreadHistogram(&zImage);
 			zImage.convertTo(zImage, CV_8U);
 			applyColorMap(zImage, zImage, COLORMAP_RAINBOW);
 
@@ -214,7 +214,7 @@ public:
 		}
 
 		if (!grayImage.empty()) {
-			spreadHistogram(grayImage);
+			spreadHistogram(&grayImage);
 			grayImage.convertTo(grayImage, CV_8U);
 
 			// L2A1
@@ -419,7 +419,7 @@ public:
 
 			// ensures that image has undergone histogram equalisation
 			if (max < 255) {
-				spreadHistogram(pic);
+				spreadHistogram(&pic);
 			}
 
 			// checks image direction
