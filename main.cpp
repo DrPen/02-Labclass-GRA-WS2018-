@@ -495,8 +495,9 @@ public:
 				else {
 					sort(TastenKIEZ.begin(), TastenKIEZ.end(), statsSortProperty(HORIZONTAL_SORT));
 				}
-				for (auto key : TastenKIEZ) {
-					key.Colour = Scalar(rand() % 256, rand() % 256, rand() % 256);	// random, but consistent colours
+				
+				for (int x = 0; x < TastenKIEZ.size(); x++) {
+					TastenKIEZ[x].Colour = Scalar(rand() % 256, rand() % 256, rand() % 256); // random, but consistent colours
 				}
 			}
 		}
