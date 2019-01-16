@@ -77,6 +77,7 @@ public:
 	// lab02
 	MyListener() {
 		this->frameCounter = 0;
+		this->segmentationColourSet = false;
 	}
 
 
@@ -236,7 +237,6 @@ public:
 			imshow("Otsu", otsu);
 
 			segment(otsu);
-
 
 			// why not bilateral
 			bilateralFilter(grayImage, bilateralGrayImage, 9, 75, 75, BORDER_CONSTANT);
@@ -495,9 +495,16 @@ public:
 				else {
 					sort(TastenKIEZ.begin(), TastenKIEZ.end(), statsSortProperty(HORIZONTAL_SORT));
 				}
+
+				if (!segmentationColourSet) {
+					for (int x = 0; x < TastenKIEZ.size(); x++) {
+						segmentationColours.push_back(Scalar(rand() % 256, rand() % 256, rand() % 256));
+						segmentationColourSet = true;
+					}
+				}
 				
 				for (int x = 0; x < TastenKIEZ.size(); x++) {
-					TastenKIEZ[x].Colour = Scalar(rand() % 256, rand() % 256, rand() % 256); // random, but consistent colours
+					TastenKIEZ[x].Colour = segmentationColours[x]; // random, but consistent colours
 				}
 			}
 		}
@@ -534,8 +541,12 @@ private:
 	int mode;
 
 	// L2A1
-	int frameCounter;	// number of frames used to accumulate image, when 0 display image
+	int frameCounter;			// number of frames used to accumulate image, when 0 display image
 	cv::Mat accGrayImage, accFrameGrayImage, avgGrayImage, medianGrayImage, bilateralGrayImage;
+
+	// L2Segmentation
+	bool segmentationColourSet;			// ugly solution for static segmentaton colours using a flag
+	vector<Scalar> segmentationColours;	// contains segmentation colours sorted by keys
 };
 
 int main(int argc, char *argv[])
