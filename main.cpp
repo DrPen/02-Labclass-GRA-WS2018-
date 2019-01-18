@@ -16,6 +16,11 @@
 #define RECORDVIDEO 2
 #define PLAYVIDEO 3
 
+// defines for sorting vectors of stats
+#define AREA 4
+#define HORIZONTAL_SORT 5
+#define VERTICAL_SORT 6
+
 
 using namespace cv;
 using namespace std;
@@ -23,21 +28,18 @@ using namespace std;
 class Stats
 {
 public:
-	Stats(int x, int y, int area, int width, int height)
+	Stats(int x, int y, int area, int width, int height, Scalar colour)
 	{
 		X = x;
 		Y = y;
 		Area = area;
 		Width = width;
 		Height = height;
+		Colour = colour;
 	}
 
 	Stats()
 	{
-	}
-
-	bool operator<(const Stats &other) {
-		return Area < other.Area;
 	}
 
 	int X;
@@ -45,6 +47,27 @@ public:
 	double Area;
 	int Width;
 	int Height;
+	Scalar Colour;
+};
+
+struct statsSortProperty {
+	int property;
+
+	statsSortProperty(int property) {
+		this->property = property;
+	}
+
+	bool operator()(const Stats &s1, const Stats &s2) const {
+		if (property == AREA) {
+			return s1.Area < s2.Area;
+		}
+		else if (property == HORIZONTAL_SORT) {
+			return s1.X < s2.X;
+		}
+		else {
+			return s1.Y < s2.Y;
+		}
+	}
 };
 
 class MyListener : public royale::IDepthDataListener
@@ -201,6 +224,7 @@ public:
 
 			// filter tests
 			blur(grayImage, avgGrayImage, Size(3, 3));
+			linePlot(avgGrayImage);
 			imshow("Average", avgGrayImage);
 
 			Mat otsu;
@@ -213,7 +237,6 @@ public:
 			imshow("Otsu", otsu);
 
 			segment(otsu);
-
 
 			// why not bilateral
 			bilateralFilter(grayImage, bilateralGrayImage, 9, 75, 75, BORDER_CONSTANT);
@@ -300,14 +323,126 @@ public:
 		this->mode = mode;
 	}
 
-	void linePlot(Mat pic) {
-		Point top, left, right, bot;
+	bool positionDetection(Mat pic) {
+		int horizontalMax = 0;
+		int verticalMax = 0;
 
+		Scalar avgGray = mean(pic);
+		Point start(-1, -1);
+		Point end(-1, -1);
 
-		for (int x = 0; x < pic.rows; x++) {
-			for (int y = 0; y < pic.cols; y++) {
+		for (int x = 10; x < pic.cols - 10; x++) {
+			for (int y = 10; y < pic.rows - 10; y++) {
+				if ((double)pic.at<uint8_t>(Point(x, y)) <= avgGray[0]) {
+					if (start == Point(-1, -1)) {
+						start = Point(x, y);
+					}
+				}
+				else {
+					if (start != Point(-1, -1)) {
+						end = Point(x, y - 1);
+					}
 
+					if (start != Point(-1, -1) && end != Point(-1, -1)) {
+						if (end.y - start.y > verticalMax) {
+							verticalMax = end.y - start.y;
+						}
+						start = Point(-1, -1);
+						end = Point(-1, -1);
+					}
+
+				}
+
+				if (start != Point(-1, -1) && y == pic.rows) {
+					end = Point(x, y);
+					if (end.y - start.y > verticalMax) {
+						verticalMax = end.y - start.y;
+					}
+					start = Point(-1, -1);
+					end = Point(-1, -1);
+				}
 			}
+		}
+
+		for (int y = 10; y < pic.rows - 10; y++) {
+			for (int x = 10; x < pic.cols - 10; x++) {
+				if ((double)pic.at<uint8_t>(Point(x, y)) <= avgGray[0]) {
+					if (start == Point(-1, -1)) {
+						start = Point(x, y);
+					}
+				}
+				else {
+					if (start != Point(-1, -1)) {
+						end = Point(x, y - 1);
+					}
+
+					if (start != Point(-1, -1) && end != Point(-1, -1)) {
+						if (end.x - start.x > horizontalMax) {
+							horizontalMax = end.x - start.x;
+						}
+						start = Point(-1, -1);
+						end = Point(-1, -1);
+					}
+				}
+
+				if (start != Point(-1, -1) && x == pic.cols) {
+					end = Point(x, y);
+					if (end.x - start.x > horizontalMax) {
+						horizontalMax = end.x - start.x;
+					}
+					start = Point(-1, -1);
+					end = Point(-1, -1);
+				}
+			}
+		}
+		return horizontalMax > verticalMax;
+	}
+
+	void linePlot(Mat pic) {
+		if (pic.empty()) {
+			cerr << "Image is empty, can't plot anything!" << endl;
+		}
+		else {
+			Mat lineImg = pic.clone();
+			lineImg = 0;
+			cvtColor(lineImg, lineImg, CV_GRAY2BGR);
+
+			Point start(-1, -1);
+			Point end(-1, -1);
+			int lineThickness = 2;
+
+			vector<Point>plotValues;
+
+			double min, max;
+			minMaxLoc(pic, &min, &max);
+			srand(time(NULL));
+
+			// ensures that image has undergone histogram equalisation
+			if (max < 255) {
+				spreadHistogram(&pic);
+			}
+
+			// checks image direction
+			bool horizontal = positionDetection(pic);
+
+			if (horizontal) {
+				for (int x = 0; x < pic.cols; x++) {
+					plotValues.push_back(Point(x, pic.at<uint8_t>(Point(x, pic.rows / 2))));
+				}
+			}
+			else {
+				for (int y = 0; y < pic.rows; y++) {
+					plotValues.push_back(Point(pic.at<uint8_t>(Point(pic.cols / 2, y)), y));
+				}
+			}
+
+			for (int x = 0; x < plotValues.size() - 1; x++) {
+				start = plotValues[x];
+				end = plotValues[x + 1];
+				line(lineImg, start, end, Scalar(rand() % 256, rand() % 256, rand() % 256), lineThickness, 8);
+			}
+
+			imshow("LinePlot", lineImg);
 		}
 	}
 
@@ -326,29 +461,63 @@ public:
 			stat.Y = stats.at<int>(x, CC_STAT_TOP);
 			stat.Width = stats.at<int>(x, CC_STAT_WIDTH);
 			stat.Height = stats.at<int>(x, CC_STAT_HEIGHT);
+			stat.Colour = Scalar(0, 0, 0);	// default colour black to detect errors
 
 			labelStats.push_back(stat);
 		}
 
-		sort(labelStats.begin(), labelStats.end());
+		// sort(labelStats.begin(), labelStats.end());
+		sort(labelStats.begin(), labelStats.end(), statsSortProperty(AREA)); // sort by AREA property
+
 
 		int avgSize = 1200;// labelStats[labelStats.size() / 2].Area;
+		srand(time(NULL));
 
+		// old version does not sort by x or y
+#if 0
+		vector<Stats> TastenKIEZ;
+		for (auto stat : labelStats) {
+			if (abs(stat.Area - avgSize) < 200)
+				stat.Colour = Scalar(rand() % 256, rand() % 256, rand() % 256);	// random, but consistent colours
+			TastenKIEZ.push_back(stat);
+		}
+#endif
+		// hit and miss version, attempts to sortt by x and y coordinates, depending on how the paper is placed
 		vector<Stats> TastenKIEZ;
 		for (auto stat : labelStats) {
 			if (abs(stat.Area - avgSize) < 200)
 				TastenKIEZ.push_back(stat);
+
+			if (!TastenKIEZ.empty()) {
+				if (TastenKIEZ[0].Width < TastenKIEZ[0].Height) {
+					sort(TastenKIEZ.begin(), TastenKIEZ.end(), statsSortProperty(VERTICAL_SORT));
+				}
+				else {
+					sort(TastenKIEZ.begin(), TastenKIEZ.end(), statsSortProperty(HORIZONTAL_SORT));
+				}
+			}
 		}
 
-		srand(time(NULL));
+		if (segmentationColours.size() < TastenKIEZ.size()) {
+			for (int x = 0; x < TastenKIEZ.size(); x++) {
+				segmentationColours.push_back(Scalar(rand() % 256, rand() % 256, rand() % 256));
+			}
+		}
+
+		for (int x = 0; x < TastenKIEZ.size(); x++) {
+			TastenKIEZ[x].Colour = segmentationColours[x]; // random, but consistent colours
+		}
+
+
+
 		Mat image = grayImage.clone();
 		cvtColor(image, image, CV_GRAY2BGR);
 
-		for (auto it : TastenKIEZ) {
-			rectangle(image, Rect(it.X, it.Y, it.Width, it.Height), Scalar(rand() % 255, rand() % 255, rand() % 255), CV_FILLED);
+		for (auto key : TastenKIEZ) {
+			rectangle(image, Rect(key.X, key.Y, key.Width, key.Height), key.Colour, CV_FILLED);
 		}
 
-		imshow("segementiert lol", image);
+		imshow("SegmentedImage", image);
 		waitKey(1);
 	}
 
@@ -372,8 +541,11 @@ private:
 	int mode;
 
 	// L2A1
-	int frameCounter;	// number of frames used to accumulate image, when 0 display image
+	int frameCounter;			// number of frames used to accumulate image, when 0 display image
 	cv::Mat accGrayImage, accFrameGrayImage, avgGrayImage, medianGrayImage, bilateralGrayImage;
+
+	// L2Segmentation
+	vector<Scalar> segmentationColours;	// contains segmentation colours sorted by keys
 };
 
 int main(int argc, char *argv[])
@@ -517,4 +689,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
